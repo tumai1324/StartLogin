@@ -1,0 +1,123 @@
+# StartLogin 消息配置文件
+# 所有UI文案均在此配置，支持MiniMessage格式
+
+# 通用消息
+general:
+  prefix: "<gray>[<gold>StartLogin</gold>]</gray> "
+  no-permission: "<red>你没有权限执行此操作"
+  player-only: "<red>此指令只能由玩家执行"
+  player-offline: "<red>玩家不在线"
+  config-reloaded: "<green>配置文件已重新加载"
+  database-backed-up: "<green>数据库已备份"
+
+# 登录相关消息
+login:
+  title: "登录系统"
+  password-label: "请输入密码"
+  submit-button: "登录"
+  switch-button: "没有账号？点此注册"
+  success: "<green>登录成功，欢迎回来！"
+  premium-success: "<green>正版验证通过，欢迎回来！"
+  welcome-premium: "<gold>检测到正版账号，自动登录成功"
+  welcome-offline: "<yellow>请登录或注册你的账号"
+  wrong-password: "<red>密码错误，剩余尝试次数：{count}"
+  account-locked: "<red>账号已被临时锁定，请稍后再试"
+  not-registered: "<red>你还没有注册账号"
+  already-logged: "<green>你已经登录了"
+
+# 注册相关消息
+register:
+  title: "注册账号"
+  password-label: "设置密码"
+  confirm-label: "确认密码"
+  submit-button: "注册"
+  switch-button: "已有账号？点此登录"
+  success: "<green>注册成功！"
+  password-mismatch: "<red>两次输入的密码不一致"
+  password-too-short: "<red>密码长度不能少于4位"
+  password-length-error: "<red>密码长度需在{min}~{max}位之间"
+  password-blacklisted: "<red>该密码过于简单，请使用更复杂的密码"
+  already-registered: "<red>你已经注册过了"
+  name-taken: "<red>该昵称已被占用"
+  failed: "<red>注册失败，请重试"
+
+# 修改密码
+changepwd:
+  success: "<green>密码修改成功"
+  wrong-old-password: "<red>原密码错误"
+
+# 注销账号
+unregister:
+  success: "<green>账号已注销"
+  confirm: "<red>确定要注销账号吗？此操作不可撤销"
+
+# 规则窗口
+rule:
+  title: "服务器规则"
+  content: |
+    欢迎来到本服务器！
+    请仔细阅读以下规则：
+    
+    1. 禁止使用任何作弊客户端
+    2. 禁止恶意攻击其他玩家
+    3. 禁止发布违规言论
+    4. 请保护好自己的账号安全
+    
+    点击下方按钮表示你已阅读并同意以上规则
+  agree-button: "同意并继续"
+  refuse-button: "拒绝"
+  refused: "<red>你拒绝了服务器规则，连接已断开"
+  closed: "<red>你关闭了规则窗口，连接已断开"
+
+# 管理员消息
+admin:
+  reset-success: "<green>账号密码已重置"
+  reset-premium: "<red>正版账号无法重置"
+  migrate-start: "<yellow>开始数据迁移..."
+  migrate-success: "<green>数据迁移完成"
+  migrate-failed: "<red>数据迁移失败，已回滚"
+  clean-success: "<green>已清理 {count} 条无效数据"
+  audit-reset: "管理员 {admin} 重置了玩家 {player} 的密码"
+  audit-clean: "管理员 {admin} 执行了数据清理"
+  force-change-password: "<green>已强制玩家 {player} 下次登录时修改密码"
+  info-header: "<gold>===== 玩家账号信息 ====="
+  info-username: "<yellow>玩家名: <white>{name}"
+  info-registered: "<yellow>注册时间: <white>{time}"
+  info-register-ip: "<yellow>注册IP: <white>{ip}"
+  info-last-login: "<yellow>最后登录: <white>{time}"
+  info-last-ip: "<yellow>最后IP: <white>{ip}"
+  info-not-found: "<red>未找到该玩家的账号信息"
+  stats-header: "<gold>===== 在线玩家统计 ====="
+  stats-total: "<yellow>在线总数: <white>{total}"
+  stats-logged-in: "<green>已登录: <white>{logged}"
+  stats-not-logged: "<red>未登录: <white>{notlogged}"
+
+# V2.2 新增消息
+security:
+  password-weak: "<red>密码强度不足！需包含大小写字母和数字"
+  password-weak-special: "<red>密码强度不足！需包含大小写字母、数字和特殊字符"
+  ip-limit: "<red>该IP注册的账号数量已达上限"
+  remote-login: "<yellow>检测到从新IP登录，请注意账号安全"
+  force-change-password: "<red>管理员要求你修改密码，请设置新密码"
+  password-expired: "<red>密码已过期，请修改密码"
+  account-too-new: "<red>账号注册时间不足，暂时无法注销"
+  kick-timeout: "<red>登录超时，已被踢出服务器"
+
+# 指令帮助
+help:
+  header: "<gold>╔══════════════════════════════════╗\n║   <gradient:gold:yellow>🔐 StartLogin 指令帮助</gradient>   <gold>║\n╚══════════════════════════════════╝"
+  player-title: "<green>🎮 玩家指令</green>"
+  login: "<gray>  <white>/sl login</white> <gray>- <yellow>打开登录窗口"
+  register: "<gray>  <white>/sl register</white> <gray>- <yellow>打开注册窗口"
+  changepwd: "<gray>  <white>/sl changepwd <旧> <新></white> <gray>- <yellow>修改密码"
+  unregister: "<gray>  <white>/sl unregister</white> <gray>- <yellow>注销账号"
+  admin-title: "<red>⚔️ 管理员指令</red>"
+  reset: "<gray>  <white>/sl reset <玩家> [密码]</white> <gray>- <light_purple>重置玩家密码"
+  forcechangepwd: "<gray>  <white>/sl forcechangepwd <玩家></white> <gray>- <light_purple>强制修改密码"
+  info: "<gray>  <white>/sl info <玩家></white> <gray>- <light_purple>查询账号信息"
+  stats: "<gray>  <white>/sl stats</white> <gray>- <light_purple>在线玩家统计"
+  backup: "<gray>  <white>/sl backup</white> <gray>- <light_purple>备份数据库"
+  clean: "<gray>  <white>/sl clean</white> <gray>- <light_purple>清理无效数据"
+  reload: "<gray>  <white>/sl reload</white> <gray>- <light_purple>重载配置文件"
+  migrate: "<gray>  <white>/sl migrate</white> <gray>- <light_purple>数据迁移"
+  footer: "<dark_gray>💡 提示: 使用 <white>/sl <子指令></white> 执行操作"
