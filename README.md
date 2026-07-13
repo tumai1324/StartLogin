@@ -1,1 +1,328 @@
-# StartLogin
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        StartLogin 插件详细使用说明                            ║
+║                              V2.2.0 版本                                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目录:
+
+  1. 插件简介
+  2. 安装指南
+  3. 配置文件详解
+  4. 指令说明
+  5. 玩家操作指南
+  6. 管理员操作指南
+  7. 数据库管理
+  8. 常见问题
+  9. 版本更新日志
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 插件简介
+───────────────────────────────────────────────────────────────────────────────
+
+StartLogin 是一款专为 Paper/Folia 服务端设计的玩家登录认证插件，
+提供安全可靠的账号管理系统，支持以下核心功能：
+
+  ▶ 玩家注册与登录系统
+  ▶ 密码安全保护（强度检测、黑名单）
+  ▶ IP登录限制与异常检测
+  ▶ 会话缓存（免密码快速登录）
+  ▶ 首次登录保护（无敌效果）
+  ▶ 密码过期策略
+  ▶ 数据库自动备份
+  ▶ 玩家统计与管理
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2. 安装指南
+───────────────────────────────────────────────────────────────────────────────
+
+2.1 系统要求
+
+  • 服务端：Paper 或 Folia 1.21 ~ 26.1
+  • Java 版本：21 或更高
+
+2.2 安装步骤
+
+  ① 将 StartLogin-2.2.0.jar 放入服务器 plugins 文件夹
+  ② 启动服务器，插件会自动创建配置文件
+  ③ 配置完成后，使用 /sl reload 重载插件
+
+2.3 首次启动
+
+  首次启动时，插件会自动创建以下文件：
+  - plugins/StartLogin/config.yml      (配置文件)
+  - plugins/StartLogin/message.yml     (消息配置)
+  - plugins/StartLogin/database.db     (SQLite 数据库)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3. 配置文件详解
+───────────────────────────────────────────────────────────────────────────────
+
+3.1 config.yml 主要配置项
+
+  登录设置:
+  ──────────
+  login-timeout: 300                    # 登录超时时间（秒），超时自动踢出
+  session-cache-duration: 1800          # 会话缓存时长（秒），默认30分钟
+  single-session: true                  # 是否启用单会话登录（同一账号只能登录一处）
+  kick-unlogged-players: true           # 是否自动踢出未登录玩家
+
+  密码设置:
+  ──────────
+  password-min-length: 6                # 密码最小长度
+  password-max-length: 32               # 密码最大长度
+  password-requires-uppercase: true     # 是否要求大写字母
+  password-requires-lowercase: true     # 是否要求小写字母
+  password-requires-number: true        # 是否要求数字
+  password-requires-special: false      # 是否要求特殊字符
+  password-expire-days: 90              # 密码过期天数（0为不启用）
+
+  安全设置:
+  ──────────
+  ip-registration-limit: 3              # 同一IP最大注册账号数（0为不限制）
+  max-failed-attempts: 5                # 最大登录失败次数
+  account-lock-duration: 300            # 账号锁定时长（秒）
+  remote-login-alert: true              # 是否启用异地登录提醒
+  first-login-protection-seconds: 60    # 首次登录保护时长（秒）
+
+  日志设置:
+  ──────────
+  verbose-logging: false                # 是否启用详细日志
+  dialog-logging: false                 # 是否启用对话框日志
+
+  其他设置:
+  ──────────
+  welcome-message: ""                   # 登录欢迎语（支持 MiniMessage 格式）
+  database-backup-interval: 86400       # 数据库备份间隔（秒）
+  min-account-age-seconds: 0            # 最小账号时长（秒），防止小号
+
+3.2 密码黑名单
+
+  在 config.yml 中配置密码黑名单：
+  password-blacklist:
+    - "123456"
+    - "password"
+    - "admin"
+    - "qwerty"
+    - "12345678"
+    - "abc123"
+    - "monkey"
+    - "123123"
+
+3.3 message.yml 消息配置
+
+  插件所有消息都可以在 message.yml 中自定义，支持 MiniMessage 格式：
+  - <color> 颜色代码
+  - <bold> 粗体
+  - <italic> 斜体
+  - <underline> 下划线
+  - <strikethrough> 删除线
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4. 指令说明
+───────────────────────────────────────────────────────────────────────────────
+
+4.1 玩家指令
+
+  /login <密码>           ── 登录账号
+  /register <密码> <确认密码> ── 注册账号
+  /changepwd <旧密码> <新密码> ── 修改密码
+  /sl                     ── 显示帮助信息
+
+4.2 管理员指令 (需要 startlogin.admin 权限)
+
+  /sl reload              ── 重载插件配置
+  /sl info <玩家名>       ── 查询玩家账号信息
+  /sl stats               ── 查看在线玩家统计
+  /sl forcechangepwd <玩家名> ── 强制玩家修改密码
+  /sl resetpwd <玩家名>   ── 重置玩家密码
+  /sl backup              ── 手动备份数据库
+  /sl kickunlogged        ── 踢出所有未登录玩家
+
+4.3 权限节点
+
+  startlogin.admin        ── 管理员权限
+  startlogin.bypass       ── 绕过登录限制（适用于管理员）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5. 玩家操作指南
+───────────────────────────────────────────────────────────────────────────────
+
+5.1 首次进入服务器
+
+  ① 进入服务器后，会自动弹出注册对话框
+  ② 输入密码并确认
+  ③ 阅读服务器规则并同意
+  ④ 注册成功，获得首次登录保护（无敌效果）
+
+5.2 登录服务器
+
+  ① 进入服务器后，会自动弹出登录对话框
+  ② 输入密码登录
+  ③ 如果在会话缓存有效期内，会自动登录
+
+5.3 修改密码
+
+  使用指令：/changepwd <旧密码> <新密码>
+
+5.4 会话缓存
+
+  会话缓存启用后，玩家在规定时间内重新登录无需输入密码，
+  系统会自动识别并完成登录。
+
+5.5 异地登录提醒
+
+  如果检测到玩家从异常IP登录，会显示提醒消息，
+  建议玩家立即修改密码。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. 管理员操作指南
+───────────────────────────────────────────────────────────────────────────────
+
+6.1 查询玩家信息
+
+  使用指令：/sl info <玩家名>
+  
+  显示内容：
+  - 玩家UUID
+  - 注册时间
+  - 最后登录时间
+  - 最后登录IP
+  - 是否同意规则
+  - 账号状态
+
+6.2 查看在线统计
+
+  使用指令：/sl stats
+  
+  显示内容：
+  - 总注册玩家数
+  - 在线玩家数
+  - 已登录玩家数
+  - 未登录玩家数
+
+6.3 强制修改密码
+
+  使用指令：/sl forcechangepwd <玩家名>
+  
+  玩家下次登录时会被强制修改密码。
+
+6.4 重置玩家密码
+
+  使用指令：/sl resetpwd <玩家名>
+  
+  重置后玩家密码为空，需要重新注册。
+
+6.5 手动备份数据库
+
+  使用指令：/sl backup
+  
+  数据库备份文件保存在 plugins/StartLogin/backups/ 目录下。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+7. 数据库管理
+───────────────────────────────────────────────────────────────────────────────
+
+7.1 数据库文件
+
+  数据库文件位于：plugins/StartLogin/database.db
+
+7.2 自动备份
+
+  插件会定时自动备份数据库，备份文件命名格式：
+  database_backup_YYYYMMDD_HHMMSS.db
+
+7.3 手动备份
+
+  使用指令：/sl backup
+
+7.4 数据库表结构
+
+  accounts 表:
+  ────────────
+  uuid          VARCHAR(36)    PRIMARY KEY
+  username      VARCHAR(16)    NOT NULL
+  password_hash VARCHAR(64)    NOT NULL
+  ip            VARCHAR(45)
+  registered_at INTEGER        NOT NULL
+  last_login_at INTEGER
+  last_login_ip VARCHAR(45)
+  failed_attempts INTEGER      DEFAULT 0
+  locked_until  INTEGER        DEFAULT 0
+  has_agreed_rule BOOLEAN      DEFAULT FALSE
+  password_changed_at INTEGER
+  force_change_password BOOLEAN DEFAULT FALSE
+
+  login_records 表:
+  ───────────────
+  id            INTEGER        PRIMARY KEY AUTOINCREMENT
+  uuid          VARCHAR(36)    NOT NULL
+  username      VARCHAR(16)    NOT NULL
+  ip            VARCHAR(45)    NOT NULL
+  success       BOOLEAN        NOT NULL
+  attempted_at  INTEGER        NOT NULL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+8. 常见问题
+───────────────────────────────────────────────────────────────────────────────
+
+Q1: 玩家登录后无法移动/破坏方块？
+
+A: 这是正常现象，请检查玩家是否完成登录。
+   使用 /sl info <玩家名> 查看玩家登录状态。
+
+Q2: 插件不兼容 Folia？
+
+A: 插件已完全兼容 Folia，使用线程池替代 Bukkit 调度器。
+
+Q3: 如何关闭密码强度检测？
+
+A: 在 config.yml 中将相关选项设置为 false：
+   password-requires-uppercase: false
+   password-requires-lowercase: false
+   password-requires-number: false
+   password-requires-special: false
+
+Q4: 数据库备份文件保存在哪里？
+
+A: plugins/StartLogin/backups/ 目录下。
+
+Q5: 如何重置玩家密码？
+
+A: 使用指令：/sl resetpwd <玩家名>
+
+Q6: 对话框切换时会闪烁？
+
+A: Paper Dialog API 限制，必须先关闭旧对话框才能打开新的，
+   V2.2.0 版本已优化为动态更新内容，减少闪烁。
+
+Q7: 会话缓存不生效？
+
+A: 请检查 config.yml 中的 session-cache-duration 设置，
+   默认30分钟（1800秒）。
+
+Q8: 玩家被锁定后如何解锁？
+
+A: 等待 account-lock-duration 时间后自动解锁，
+   或使用 /sl resetpwd 重置密码。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+9. 版本更新日志(请查看下载页面)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+插件开发者: 屏风
+联系邮箱: Screen520@qq.com
+GitHub: [StartLogin](https://github.com/tumai1324/StartLogin)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
