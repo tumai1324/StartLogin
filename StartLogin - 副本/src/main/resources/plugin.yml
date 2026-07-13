@@ -1,0 +1,23 @@
+name: StartLogin
+version: '${project.version}'
+main: com.pingfeng.startlogin.StartLogin
+api-version: '1.21'
+author: 屏风
+description: 登录系统插件
+folia-supported: true
+
+commands:
+  sl:
+    description: StartLogin 主指令
+    usage: /sl <subcommand>
+    aliases: [startlogin]
+    permission: startlogin.use
+    permission-message: §c你没有权限使用此指令
+
+permissions:
+  startlogin.use:
+    description: 使用StartLogin基础功能
+    default: true
+  startlogin.admin:
+    description: StartLogin管理员权限
+    default: op
