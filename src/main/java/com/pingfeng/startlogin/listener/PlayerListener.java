@@ -3,8 +3,10 @@ package com.pingfeng.startlogin.listener;
 import com.pingfeng.startlogin.StartLogin;
 import com.pingfeng.startlogin.account.AccountManager;
 import com.pingfeng.startlogin.account.AccountManager.AccountData;
+import com.pingfeng.startlogin.auth.PremiumAuthManager;
 import com.pingfeng.startlogin.config.ConfigManager;
 import com.pingfeng.startlogin.config.MessageManager;
+import com.pingfeng.startlogin.thread.ThreadPoolManager;
 import com.pingfeng.startlogin.ui.FormDialogManager;
 import com.pingfeng.startlogin.ui.UILock;
 import net.kyori.adventure.text.Component;
@@ -25,6 +27,9 @@ import org.bukkit.event.player.*;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class PlayerListener implements Listener {
 
@@ -33,15 +38,22 @@ public class PlayerListener implements Listener {
     private final FormDialogManager formDialogManager;
     private final MessageManager messageManager;
     private final UILock uiLock;
+    private final PremiumAuthManager premiumAuthManager;
+    private final ThreadPoolManager threadPoolManager;
+    private final Map<UUID, ScheduledFuture<?>> premiumPollTasks;
 
     public PlayerListener(StartLogin plugin, AccountManager accountManager,
                           FormDialogManager formDialogManager,
-                          MessageManager messageManager, UILock uiLock) {
+                          MessageManager messageManager, UILock uiLock,
+                          PremiumAuthManager premiumAuthManager, ThreadPoolManager threadPoolManager) {
         this.plugin = plugin;
         this.accountManager = accountManager;
         this.formDialogManager = formDialogManager;
         this.messageManager = messageManager;
         this.uiLock = uiLock;
+        this.premiumAuthManager = premiumAuthManager;
+        this.threadPoolManager = threadPoolManager;
+        this.premiumPollTasks = new ConcurrentHashMap<>();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -72,25 +84,45 @@ public class PlayerListener implements Listener {
                 if (configManager().isVerboseLogging()) {
                     plugin.getLogger().info("新玩家进入: " + username + " (UUID: " + uuid + ")");
                 }
-                doRegister(player);
+                if (configManager().isPremiumEnabled()) {
+                    doModeSelect(player);
+                } else {
+                    doRegister(player);
+                }
             } else {
                 if (configManager().isVerboseLogging()) {
                     plugin.getLogger().info("老玩家进入: " + username + " (UUID: " + uuid + ")");
                 }
                 accountManager.setAgreedRuleLocal(uuid, data.hasAgreedRule);
 
-                if (accountManager.isSessionCached(uuid)) {
-                    if (configManager().isVerboseLogging()) {
-                        plugin.getLogger().info("玩家 " + username + " 在会话缓存有效期内，自动登录");
+                if (data.isPremium && configManager().isPremiumEnabled()) {
+                    if (accountManager.isSessionCached(uuid)) {
+                        if (configManager().isVerboseLogging()) {
+                            plugin.getLogger().info("正版玩家 " + username + " 在会话缓存有效期内，自动登录");
+                        }
+                        accountManager.setLoggedIn(uuid, true, true);
+                        accountManager.cacheSession(uuid);
+                        String ip = getPlayerIp(player);
+                        accountManager.recordLoginAttempt(uuid, username, ip, true);
+                        accountManager.updateLoginInfo(uuid, ip, null);
+                        handlePostLogin(player, data);
+                    } else {
+                        doPremiumSessionVerify(player, data);
                     }
-                    accountManager.setLoggedIn(uuid, true, false);
-                    accountManager.cacheSession(uuid);
-                    String ip = getPlayerIp(player);
-                    accountManager.recordLoginAttempt(uuid, username, ip, true);
-                    accountManager.updateLoginInfo(uuid, ip, null);
-                    handlePostLogin(player, data);
                 } else {
-                    doLogin(player);
+                    if (accountManager.isSessionCached(uuid)) {
+                        if (configManager().isVerboseLogging()) {
+                            plugin.getLogger().info("玩家 " + username + " 在会话缓存有效期内，自动登录");
+                        }
+                        accountManager.setLoggedIn(uuid, true, false);
+                        accountManager.cacheSession(uuid);
+                        String ip = getPlayerIp(player);
+                        accountManager.recordLoginAttempt(uuid, username, ip, true);
+                        accountManager.updateLoginInfo(uuid, ip, null);
+                        handlePostLogin(player, data);
+                    } else {
+                        doLogin(player);
+                    }
                 }
             }
         });
@@ -335,6 +367,160 @@ public class PlayerListener implements Listener {
         formDialogManager.openRuleForm(player,
                 () -> accountManager.setAgreedRule(player.getUniqueId(), onAgree),
                 () -> {});
+    }
+
+    private void doModeSelect(Player player) {
+        formDialogManager.openModeSelectForm(player,
+                () -> startPremiumLogin(player),
+                () -> {
+                    formDialogManager.cleanupDialog(player.getUniqueId());
+                    doRegister(player);
+                });
+    }
+
+    private void startPremiumLogin(Player player) {
+        UUID uuid = player.getUniqueId();
+        formDialogManager.cleanupDialog(uuid);
+
+        if (configManager().isVerboseLogging()) {
+            plugin.getLogger().info("开始正版验证流程: " + player.getName());
+        }
+
+        final boolean[] cancelled = {false};
+        final String[] currentUserCode = {null};
+
+        premiumAuthManager.startDeviceLogin(new PremiumAuthManager.DeviceLoginStartCallback() {
+            @Override
+            public void onDeviceCode(String userCode, String verificationUrl) {
+                if (!player.isOnline() || cancelled[0]) return;
+                currentUserCode[0] = userCode;
+
+                if (configManager().isVerboseLogging()) {
+                    plugin.getLogger().info("获取设备码成功: " + userCode + ", " + verificationUrl);
+                }
+
+                formDialogManager.openPremiumVerifyForm(player, userCode, verificationUrl,
+                        () -> {
+                            cancelled[0] = true;
+                            doPremiumCancel(player);
+                        },
+                        () -> {});
+
+                net.kyori.adventure.text.Component clickableLink = net.kyori.adventure.text.Component.text()
+                        .append(net.kyori.adventure.text.Component.text("[StartLogin] 请打开浏览器访问以下链接进行正版验证：\n", net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                        .append(net.kyori.adventure.text.Component.text(verificationUrl + "\n", net.kyori.adventure.text.format.NamedTextColor.GOLD)
+                                .decorate(net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
+                                .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(verificationUrl)))
+                        .append(net.kyori.adventure.text.Component.text("设备码：", net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                        .append(net.kyori.adventure.text.Component.text(userCode + "\n", net.kyori.adventure.text.format.NamedTextColor.GOLD)
+                                .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)
+                                .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(userCode)))
+                        .append(net.kyori.adventure.text.Component.text("（点击链接打开验证页面，点击设备码复制）", net.kyori.adventure.text.format.NamedTextColor.GRAY))
+                        .build();
+                player.sendMessage(clickableLink);
+            }
+
+            @Override
+            public void onSuccess(UUID premiumUuid, String username, String mcToken, String refreshToken, long accessTokenExpires) {
+                if (!player.isOnline() || cancelled[0]) return;
+                if (configManager().isVerboseLogging()) {
+                    plugin.getLogger().info("正版验证成功: " + username);
+                }
+                formDialogManager.updatePremiumVerifyStatus(player, "验证成功，正在登录...");
+                handlePremiumLoginSuccess(player, premiumUuid, username, mcToken, refreshToken, accessTokenExpires);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (!player.isOnline() || cancelled[0]) return;
+                plugin.getLogger().warning("正版验证失败: " + player.getName() + ", " + error);
+                formDialogManager.cleanupDialog(uuid);
+                formDialogManager.openMessageDialog(player, "<red>正版验证失败：" + error + "\n\n请选择离线密码注册",
+                        () -> doModeSelect(player));
+            }
+        });
+    }
+
+    private void doPremiumCancel(Player player) {
+        UUID uuid = player.getUniqueId();
+        formDialogManager.cleanupDialog(uuid);
+        doModeSelect(player);
+    }
+
+    private void handlePremiumLoginSuccess(Player player, UUID premiumUuid, String username, String mcToken, String refreshToken, long accessTokenExpires) {
+        UUID uuid = player.getUniqueId();
+        String ip = getPlayerIp(player);
+
+        accountManager.checkPremiumAccount(premiumUuid.toString(), (exists, existingData) -> {
+            if (!player.isOnline()) return;
+
+            if (exists) {
+                if (!existingData.uuid.equals(uuid)) {
+                    formDialogManager.cleanupDialog(uuid);
+                    player.kick(Component.text("该正版账号已绑定其他玩家"));
+                    return;
+                }
+                accountManager.setLoggedIn(uuid, true, true);
+                accountManager.cacheSession(uuid);
+                accountManager.recordLoginAttempt(uuid, username, ip, true);
+                accountManager.updateLoginInfo(uuid, ip, null);
+                formDialogManager.cleanupDialog(uuid);
+                handlePostLogin(player, existingData);
+            } else {
+                accountManager.checkNameConflict(username, conflict -> {
+                    if (!player.isOnline()) return;
+                    if (conflict) {
+                        formDialogManager.cleanupDialog(uuid);
+                        player.kick(Component.text("该玩家名已被注册，请使用离线模式或联系管理员"));
+                        return;
+                    }
+                    accountManager.registerPremiumAccount(uuid, username, premiumUuid.toString(),
+                            refreshToken, mcToken, accessTokenExpires, ip, success -> {
+                                if (!player.isOnline()) return;
+                                if (success) {
+                                    accountManager.setLoggedIn(uuid, true, true);
+                                    accountManager.cacheSession(uuid);
+                                    accountManager.enableFirstLoginProtection(uuid);
+                                    formDialogManager.cleanupDialog(uuid);
+                                    accountManager.loadAccount(uuid, username, data -> {
+                                        if (!player.isOnline()) return;
+                                        doRule(player, () -> {
+                                            formDialogManager.openMessageDialog(player, "<green>正版验证成功！欢迎加入服务器", null);
+                                        });
+                                    });
+                                } else {
+                                    formDialogManager.cleanupDialog(uuid);
+                                    formDialogManager.openMessageDialog(player, "<red>注册正版账号失败，请重试",
+                                            () -> doModeSelect(player));
+                                }
+                            });
+                });
+            }
+        });
+    }
+
+    private void doPremiumSessionVerify(Player player, AccountData data) {
+        UUID uuid = player.getUniqueId();
+        String username = player.getName();
+        String ip = getPlayerIp(player);
+
+        String serverId = "";
+        premiumAuthManager.verifyMinecraftSession(username, serverId, ip, (valid, verifiedUuid, verifiedName) -> {
+            if (!player.isOnline()) return;
+            if (valid && verifiedUuid != null) {
+                if (data.premiumUuid != null && data.premiumUuid.equals(verifiedUuid.toString())) {
+                    accountManager.setLoggedIn(uuid, true, true);
+                    accountManager.cacheSession(uuid);
+                    accountManager.recordLoginAttempt(uuid, username, ip, true);
+                    accountManager.updateLoginInfo(uuid, ip, null);
+                    handlePostLogin(player, data);
+                } else {
+                    doLogin(player);
+                }
+            } else {
+                doLogin(player);
+            }
+        });
     }
 
     private boolean isRestricted(Player player) {

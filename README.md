@@ -1,198 +1,228 @@
 # StartLogin
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/pingfeng/StartLogin)
-![GitHub License](https://img.shields.io/github/license/pingfeng/StartLogin)
-![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/pingfeng/StartLogin)
+一款专为 Paper/Folia 服务端设计的玩家登录认证插件，提供安全可靠的账号管理系统。
 
-一款专为 **Paper/Folia** 服务端设计的现代化玩家登录认证插件，提供安全可靠的账号管理系统。
+## 功能特性
 
-## ✨ 特性
+### 🔐 核心功能
+- **玩家注册与登录** - 支持离线密码和正版验证两种模式
+- **会话缓存** - 在规定时间内重新登录无需输入密码
+- **密码安全** - 强度检测、黑名单过滤、过期策略
+- **IP登录限制** - 防止恶意注册和多开
 
-### 🔐 安全功能
-- **密码强度检测** - 支持大写字母、小写字母、数字、特殊字符要求
-- **密码黑名单** - 阻止使用常见弱密码
-- **IP登录限制** - 防止同一IP注册大量账号
+### ✨ 正版验证 (V2.3)
+- **Microsoft OAuth 认证** - 使用 MinecraftAuth 库实现
+- **设备码登录** - 无需重定向，浏览器输入设备码即可验证
+- **自动登录** - 正版验证通过后无需输入密码，每次自动进入游戏
+- **账号转换** - 已注册离线账号可转为正版状态
+
+### 🛡️ 安全功能
 - **登录尝试记录** - 记录每次登录的时间、IP、成功/失败状态
 - **异地登录提醒** - 检测异常IP登录并提示玩家
-- **账号锁定** - 多次登录失败后自动锁定账号
-
-### 🎮 用户体验
-- **Paper Dialog API** - 使用原生对话框，界面美观流畅
-- **动态对话框更新** - 错误提示无需关闭再打开，直接更新内容
-- **会话缓存** - 规定时间内免密码快速登录
 - **首次登录保护** - 新玩家注册后获得短暂无敌效果
-- **登录欢迎语** - 可自定义个性化欢迎消息
+- **账号锁定** - 多次登录失败后自动锁定
 
-### 🔧 管理功能
-- **玩家账号信息查询** - `/sl info <玩家名>`
+### 📊 管理功能
+- **玩家信息查询** - `/sl info <玩家名>`
 - **在线玩家统计** - `/sl stats`
 - **强制修改密码** - `/sl forcechangepwd <玩家名>`
-- **密码过期策略** - 密码超过指定天数后强制修改
-- **未登录踢出** - 超时未登录的玩家自动踢出
 - **数据库自动备份** - 定时备份 SQLite 数据库
 
-## 📋 系统要求
+### 🎨 用户体验
+- **Paper Dialog API** - 使用原生对话框界面
+- **动态内容更新** - 同一对话框实例更新内容，无需关闭再打开
+- **消息自定义** - 所有消息支持 MiniMessage 格式
+- **命令帮助美化** - 带有颜色和图标的帮助信息
 
-- **服务端**: Paper 或 Folia 1.21 ~ 26.1 (建议 1.21.7 以上版本)
-- **Java**: 21 或更高版本
-- **数据库**: SQLite (内置，无需额外配置)
+## 系统要求
 
-## 🚀 快速开始
+- **服务端**: Paper 或 Folia 1.21 ~ 26.1（建议 1.21.7+）
+- **Java 版本**: 21 或更高
 
-### 安装
+## 安装指南
 
-1. 将 `StartLogin-V2.2.0.jar` 放入服务器 `plugins` 文件夹
+1. 将 `StartLogin-2.3.0.jar` 放入服务器 `plugins` 文件夹
 2. 启动服务器，插件会自动创建配置文件
 3. 配置完成后，使用 `/sl reload` 重载插件
 
 ### 首次启动
 
-首次启动时，插件会自动创建以下文件：
+插件会自动创建以下文件：
 - `plugins/StartLogin/config.yml` - 配置文件
 - `plugins/StartLogin/message.yml` - 消息配置
 - `plugins/StartLogin/database.db` - SQLite 数据库
 
-## 📝 指令说明
+## 配置说明
+
+### 正版验证开关
+
+```yaml
+premium:
+  enabled: true  # 设为 false 关闭正版验证，直接进入离线登录流程
+```
+
+### 主要配置项
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `login.session-cache-timeout` | 30 | 会话缓存时长（分钟） |
+| `security.kick-timeout` | 300 | 未登录踢出时间（秒） |
+| `security.password-strength-check` | false | 是否开启密码强度检测 |
+| `security.first-login-protection` | 30 | 首次登录保护时长（秒） |
+| `database.auto-backup-interval` | 24 | 自动备份间隔（小时） |
+
+## 指令说明
 
 ### 玩家指令
 
 | 指令 | 说明 |
 |------|------|
-| `/sl login <密码>` | 登录账号 |
-| `/sl register <密码> <确认密码>` | 注册账号 |
-| `/sl changepwd <旧密码> <新密码>` | 修改密码 |
+| `/login <密码>` | 登录账号 |
+| `/register <密码> <确认密码>` | 注册账号 |
+| `/changepwd <旧密码> <新密码>` | 修改密码 |
 | `/sl` | 显示帮助信息 |
+| `/sl premium` | 将自己转为正版状态 |
 
 ### 管理员指令
 
-| 指令 | 说明 | 权限 |
-|------|------|------|
-| `/sl reload` | 重载插件配置 | `startlogin.admin` |
-| `/sl info <玩家名>` | 查询玩家账号信息 | `startlogin.admin` |
-| `/sl stats` | 查看在线玩家统计 | `startlogin.admin` |
-| `/sl forcechangepwd <玩家名>` | 强制玩家修改密码 | `startlogin.admin` |
-| `/sl resetpwd <玩家名>` | 重置玩家密码 | `startlogin.admin` |
-| `/sl backup` | 手动备份数据库 | `startlogin.admin` |
-| `/sl kickunlogged` | 踢出所有未登录玩家 | `startlogin.admin` |
+| 指令 | 说明 |
+|------|------|
+| `/sl reload` | 重载插件配置 |
+| `/sl info <玩家名>` | 查询玩家账号信息 |
+| `/sl stats` | 查看在线玩家统计 |
+| `/sl forcechangepwd <玩家名>` | 强制玩家修改密码 |
+| `/sl resetpwd <玩家名>` | 重置玩家密码 |
+| `/sl backup` | 手动备份数据库 |
+| `/sl kickunlogged` | 踢出所有未登录玩家 |
+| `/sl premium <玩家名>` | 将玩家转为正版状态 |
+| `/sl unpremium <玩家名>` | 取消玩家正版状态 |
 
-## ⚙️ 配置文件
+## 权限节点
 
-### 主要配置项
+| 权限 | 说明 |
+|------|------|
+| `startlogin.admin` | 管理员权限 |
+| `startlogin.bypass` | 绕过登录限制 |
 
-```yaml
-# 登录设置
-login-timeout: 300                    # 登录超时时间（秒）
-session-cache-duration: 1800          # 会话缓存时长（秒），默认30分钟
-single-session: true                  # 是否启用单会话登录
-kick-unlogged-players: true           # 是否自动踢出未登录玩家
+## 使用流程
 
-# 密码设置
-password-min-length: 6                # 密码最小长度
-password-max-length: 32               # 密码最大长度
-password-requires-uppercase: true     # 是否要求大写字母
-password-requires-lowercase: true     # 是否要求小写字母
-password-requires-number: true        # 是否要求数字
-password-requires-special: false      # 是否要求特殊字符
-password-expire-days: 90              # 密码过期天数（0为不启用）
+### 首次进入（正版验证）
 
-# 安全设置
-ip-registration-limit: 3              # 同一IP最大注册账号数
-max-failed-attempts: 5                # 最大登录失败次数
-account-lock-duration: 300            # 账号锁定时长（秒）
-remote-login-alert: true              # 是否启用异地登录提醒
-first-login-protection-seconds: 60    # 首次登录保护时长（秒）
+1. 进入服务器，选择「正版验证」选项
+2. 点击「打开验证页面」按钮，浏览器打开验证链接
+3. 在浏览器中输入设备码（或点击复制）
+4. 使用 Microsoft 账号登录并授权
+5. 返回游戏，系统自动检测登录状态
+6. 验证成功后自动登录，后续无需输入密码
 
-# 日志设置
-verbose-logging: false                # 是否启用详细日志
-dialog-logging: false                 # 是否启用对话框日志
+### 首次进入（离线密码）
 
-# 其他设置
-welcome-message: ""                   # 登录欢迎语（支持 MiniMessage 格式）
-database-backup-interval: 86400       # 数据库备份间隔（秒）
-min-account-age-seconds: 0            # 最小账号时长（秒）
-```
+1. 进入服务器，选择「离线密码」选项
+2. 输入密码并确认
+3. 阅读并同意服务器规则
+4. 注册成功，获得首次登录保护
 
-## 📊 数据库结构
+### 转为正版（已注册玩家）
 
-### accounts 表
+1. 使用密码登录账号
+2. 输入指令 `/sl premium`
+3. 按照提示完成正版验证
+4. 验证成功后，后续登录将使用正版验证方式
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| uuid | VARCHAR(36) | 玩家UUID |
-| username | VARCHAR(16) | 玩家名称 |
-| password_hash | VARCHAR(64) | 密码哈希值 |
-| ip | VARCHAR(45) | 注册IP |
-| registered_at | INTEGER | 注册时间戳 |
-| last_login_at | INTEGER | 最后登录时间戳 |
-| last_login_ip | VARCHAR(45) | 最后登录IP |
-| failed_attempts | INTEGER | 失败登录次数 |
-| locked_until | INTEGER | 账号锁定到期时间 |
-| has_agreed_rule | BOOLEAN | 是否已同意规则 |
-| password_changed_at | INTEGER | 密码最后修改时间 |
-| force_change_password | BOOLEAN | 是否强制修改密码 |
+## 数据库
 
-### login_records 表
+### 文件位置
+
+- 数据库文件: `plugins/StartLogin/database.db`
+- 备份目录: `plugins/StartLogin/backups/`
+
+### 表结构
+
+**accounts 表**
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | INTEGER | 记录ID |
-| uuid | VARCHAR(36) | 玩家UUID |
-| username | VARCHAR(16) | 玩家名称 |
-| ip | VARCHAR(45) | 登录IP |
-| success | BOOLEAN | 是否成功 |
-| attempted_at | INTEGER | 尝试时间戳 |
+| `uuid` | VARCHAR(36) | 玩家UUID |
+| `username` | VARCHAR(16) | 玩家名 |
+| `password_hash` | VARCHAR(64) | 密码哈希 |
+| `is_premium` | BOOLEAN | 是否正版 |
+| `premium_uuid` | VARCHAR(36) | 正版UUID |
+| `microsoft_refresh_token` | VARCHAR(512) | Microsoft刷新令牌 |
 
-## 🎨 消息格式
+**login_records 表**
 
-插件使用 **MiniMessage** 格式，支持以下标签：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | INTEGER | 记录ID |
+| `uuid` | VARCHAR(36) | 玩家UUID |
+| `ip` | VARCHAR(45) | 登录IP |
+| `success` | BOOLEAN | 是否成功 |
+| `attempted_at` | INTEGER | 尝试时间 |
 
-- `<color>` - 颜色代码（如 `<red>`, `<green>`, `<blue>`）
-- `<bold>` - 粗体
-- `<italic>` - 斜体
-- `<underline>` - 下划线
-- `<strikethrough>` - 删除线
+## 版本更新日志
 
-示例：
-```yaml
-login-success: "<green><bold>登录成功！</bold></green>欢迎回来，<yellow>{username}</yellow>"
-```
+### V2.3 (正版验证版本)
 
-## 🔄 版本更新日志
-
-### V2.2.0 (动态对话框优化)
-- 使用同一个对话框实例动态更新内容，无需关闭再打开
-- DialogSession 状态管理，保存对话框类型、标题、内容、输入等状态
-- updateDialogWithError() 方法，错误时直接更新对话框内容
-- switchDialogType() 方法，切换对话框类型时保持流畅体验
-- 登录/注册流程使用动态对话框更新，减少闪烁
-- 修复 UILock 冷却阻塞问题
-- 修复密码为空未验证问题
+- ✅ 正版验证功能，支持 Microsoft 账号 OAuth 设备码登录
+- ✅ 玩家首次进入可选择「正版验证」或「离线密码」两种模式
+- ✅ 正版验证通过后无需输入密码，每次自动进入游戏
+- ✅ 正版账号自动注册/登录，无需手动注册
+- ✅ 已注册离线账号可手动转为正版状态
+- ✅ 玩家指令 `/sl premium` 将自己转为正版状态
+- ✅ 管理员指令 `/sl premium <玩家>` 转为正版
+- ✅ 管理员指令 `/sl unpremium <玩家>` 取消正版状态
+- ✅ 正版验证对话框添加「打开验证页面」按钮
+- ✅ 设备码支持点击复制功能
+- ✅ 未登录踢出时间默认改为5分钟（300秒）
+- ✅ 禁用 MinecraftAuth 库的日志输出
+- ✅ 修复 UI锁占用导致正版验证界面无法打开的问题
+- ✅ 修复点击对话框中链接导致对话框自动关闭的问题
 
 ### V2.2 (全功能版本)
-- 密码强度检测（大写字母、小写字母、数字、特殊字符）
-- IP登录限制，同一IP最多注册指定数量账号
-- 登录尝试记录，记录每次登录的时间、IP、成功/失败状态
-- 异地登录提醒，检测异常IP登录并提示玩家
-- 强制修改密码，管理员可强制玩家修改密码
-- 密码找回功能，通过安全问题找回密码
-- 登录欢迎语，可自定义欢迎消息
-- 首次登录保护，新玩家注册后获得短暂无敌效果
-- 数据库自动备份，定时备份 SQLite 数据库
-- 玩家账号信息查询指令 `/sl info <玩家名>`
-- 在线玩家统计指令 `/sl stats`
-- 未登录玩家自动踢出，超时未登录的玩家会被踢出
-- 密码过期策略，密码超过指定天数后强制修改
-- 最小账号时长限制，防止小号刷号
 
-## 📄 许可证
+- ✅ 密码强度检测（大写字母、小写字母、数字、特殊字符）
+- ✅ IP登录限制，同一IP最多注册指定数量账号
+- ✅ 登录尝试记录
+- ✅ 异地登录提醒
+- ✅ 强制修改密码
+- ✅ 密码找回功能
+- ✅ 登录欢迎语
+- ✅ 首次登录保护
+- ✅ 数据库自动备份
+- ✅ 玩家账号信息查询指令 `/sl info`
+- ✅ 在线玩家统计指令 `/sl stats`
+- ✅ 未登录玩家自动踢出
+- ✅ 密码过期策略
+- ✅ 最小账号时长限制
 
-本项目采用 **MIT License** 许可证，详见 [LICENSE](LICENSE) 文件。
+## 常见问题
 
- 
-欢迎提交 Issue 和 Pull Request！
+**Q: 如何关闭正版验证功能？**
 
-## 📧 联系方式
-QQ邮箱：Screen520@qq.com
+A: 在 `config.yml` 中将 `premium.enabled` 设置为 `false`，然后使用 `/sl reload` 重载插件。关闭后玩家直接进入离线注册/登录流程。
 
-- 开发者: 屏风
-- GitHub:[StartLogin](https://github.com/tumai1324/StartLogin)
+**Q: 玩家登录后无法移动/破坏方块？**
+
+A: 请检查玩家是否完成登录。使用 `/sl info <玩家名>` 查看玩家登录状态。
+
+**Q: 会话缓存不生效？**
+
+A: 请检查 `config.yml` 中的 `login.session-cache-timeout` 设置，默认30分钟。
+
+**Q: 对话框切换时会闪烁？**
+
+A: Paper Dialog API 限制，必须先关闭旧对话框才能打开新的。V2.2 版本已优化为动态更新内容，减少闪烁。
+
+**Q: 设备码过期了怎么办？**
+
+A: 关闭对话框重新选择「正版验证」，系统会生成新的设备码。
+
+## 开发者
+
+- **作者**: 屏风
+- **联系邮箱**: Screen520@qq.com
+- **GitHub**: https://github.com/tumai1324/StartLogin
+
+## 许可证
+
+本项目采用 MIT License 许可证。

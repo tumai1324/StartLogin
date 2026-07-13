@@ -24,6 +24,7 @@ login:
   account-locked: "<red>账号已被临时锁定，请稍后再试"
   not-registered: "<red>你还没有注册账号"
   already-logged: "<green>你已经登录了"
+  premium-auto: "<green>正版验证通过，自动登录成功"
 
 # 注册相关消息
 register:
@@ -69,6 +70,39 @@ rule:
   refused: "<red>你拒绝了服务器规则，连接已断开"
   closed: "<red>你关闭了规则窗口，连接已断开"
 
+# 模式选择窗口
+modeselect:
+  title: "欢迎来到服务器"
+  content: "请选择登录方式\n\n🎮 正版验证：使用 Microsoft 账号登录，无需密码\n🔐 离线密码：使用账号密码登录"
+  premium-button: "正版验证"
+  offline-button: "离线密码"
+
+# 正版验证窗口
+premiumverify:
+  title: "正版验证"
+  intro: "请使用浏览器访问以下链接并输入代码完成验证："
+  url-label: "验证链接："
+  code-label: "设备码："
+  footer: "完成验证后点击「我已验证」按钮"
+  primary-button: "我已验证"
+  secondary-button: "取消"
+  polling: "正在验证中，请稍候..."
+  success: "✅ 验证成功！正在登录..."
+  failed: "❌ 验证失败，请重试"
+  cancelled: "已取消验证"
+  timeout: "验证超时，请重试"
+
+# 正版相关
+premium:
+  set-success: "<green>已将玩家 {player} 转为正版状态"
+  unset-success: "<green>已取消玩家 {player} 的正版状态"
+  already-premium: "<yellow>该玩家已是正版状态"
+  not-premium: "<yellow>该玩家不是正版状态"
+  account-not-found: "<red>未找到该玩家的账号"
+  cancelled: "<yellow>正版验证已取消"
+  already-bound: "<red>该正版账号已绑定其他玩家"
+  bound-success: "<green>正版验证成功，已绑定账号！下次登录将自动进入游戏"
+
 # 管理员消息
 admin:
   reset-success: "<green>账号密码已重置"
@@ -92,6 +126,11 @@ admin:
   stats-logged-in: "<green>已登录: <white>{logged}"
   stats-not-logged: "<red>未登录: <white>{notlogged}"
 
+# 账号信息
+info:
+  is-premium: "<yellow>正版状态: <white>{status}"
+  premium-uuid: "<yellow>正版UUID: <white>{uuid}"
+
 # V2.2 新增消息
 security:
   password-weak: "<red>密码强度不足！需包含大小写字母和数字"
@@ -111,9 +150,12 @@ help:
   register: "<gray>  <white>/sl register</white> <gray>- <yellow>打开注册窗口"
   changepwd: "<gray>  <white>/sl changepwd <旧> <新></white> <gray>- <yellow>修改密码"
   unregister: "<gray>  <white>/sl unregister</white> <gray>- <yellow>注销账号"
+  premium-self: "<gray>  <white>/sl premium</white> <gray>- <yellow>将自己转为正版状态"
   admin-title: "<red>⚔️ 管理员指令</red>"
   reset: "<gray>  <white>/sl reset <玩家> [密码]</white> <gray>- <light_purple>重置玩家密码"
   forcechangepwd: "<gray>  <white>/sl forcechangepwd <玩家></white> <gray>- <light_purple>强制修改密码"
+  premium: "<gray>  <white>/sl premium <玩家></white> <gray>- <light_purple>将玩家转为正版状态"
+  unpremium: "<gray>  <white>/sl unpremium <玩家></white> <gray>- <light_purple>取消玩家正版状态"
   info: "<gray>  <white>/sl info <玩家></white> <gray>- <light_purple>查询账号信息"
   stats: "<gray>  <white>/sl stats</white> <gray>- <light_purple>在线玩家统计"
   backup: "<gray>  <white>/sl backup</white> <gray>- <light_purple>备份数据库"

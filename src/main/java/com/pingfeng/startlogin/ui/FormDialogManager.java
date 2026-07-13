@@ -42,6 +42,8 @@ public class FormDialogManager {
         public Runnable onSecondary;
         public final Map<String, String> inputs;
         public String errorMessage;
+        public String premiumUserCode;
+        public String premiumVerificationUrl;
 
         public DialogSession() {
             this.inputs = new HashMap<>();
@@ -144,25 +146,58 @@ public class FormDialogManager {
                 baseBuilder.inputs(inputs);
             }
 
-            ActionButton primaryBtn = ActionButton.builder(text(session.primaryButton))
-                    .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick(
-                            Key.key("startlogin", "submit"), null))
-                    .build();
+            if ("premiumVerify".equals(session.type)) {
+                List<ActionButton> actions = new ArrayList<>();
 
-            ActionButton secondaryBtn = ActionButton.builder(text(session.secondaryButton))
-                    .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick(
-                            Key.key("startlogin", "switch"), null))
-                    .build();
+                if (session.premiumVerificationUrl != null && !session.premiumVerificationUrl.isEmpty()) {
+                    ActionButton openUrlBtn = ActionButton.builder(text("打开验证页面"))
+                            .action(io.papermc.paper.registry.data.dialog.action.DialogAction.staticAction(
+                                    net.kyori.adventure.text.event.ClickEvent.openUrl(session.premiumVerificationUrl)))
+                            .build();
+                    actions.add(openUrlBtn);
+                }
 
-            Dialog dialog = Dialog.create(factory -> {
-                io.papermc.paper.registry.RegistryBuilder<io.papermc.paper.dialog.Dialog> builder = factory.empty();
-                io.papermc.paper.registry.data.dialog.DialogRegistryEntry.Builder entryBuilder = 
-                        (io.papermc.paper.registry.data.dialog.DialogRegistryEntry.Builder) builder;
-                entryBuilder.base(baseBuilder.build());
-                entryBuilder.type(DialogType.confirmation(primaryBtn, secondaryBtn));
-            });
+                ActionButton verifyBtn = ActionButton.builder(text(session.primaryButton))
+                        .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick(
+                                Key.key("startlogin", "submit"), null))
+                        .build();
+                actions.add(verifyBtn);
 
-            player.showDialog(dialog);
+                ActionButton cancelBtn = ActionButton.builder(text(session.secondaryButton))
+                        .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick(
+                                Key.key("startlogin", "switch"), null))
+                        .build();
+
+                Dialog dialog = Dialog.create(factory -> {
+                    io.papermc.paper.registry.RegistryBuilder<io.papermc.paper.dialog.Dialog> builder = factory.empty();
+                    io.papermc.paper.registry.data.dialog.DialogRegistryEntry.Builder entryBuilder =
+                            (io.papermc.paper.registry.data.dialog.DialogRegistryEntry.Builder) builder;
+                    entryBuilder.base(baseBuilder.build());
+                    entryBuilder.type(DialogType.multiAction(actions, cancelBtn, 1));
+                });
+
+                player.showDialog(dialog);
+            } else {
+                ActionButton primaryBtn = ActionButton.builder(text(session.primaryButton))
+                        .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick(
+                                Key.key("startlogin", "submit"), null))
+                        .build();
+
+                ActionButton secondaryBtn = ActionButton.builder(text(session.secondaryButton))
+                        .action(io.papermc.paper.registry.data.dialog.action.DialogAction.customClick(
+                                Key.key("startlogin", "switch"), null))
+                        .build();
+
+                Dialog dialog = Dialog.create(factory -> {
+                    io.papermc.paper.registry.RegistryBuilder<io.papermc.paper.dialog.Dialog> builder = factory.empty();
+                    io.papermc.paper.registry.data.dialog.DialogRegistryEntry.Builder entryBuilder =
+                            (io.papermc.paper.registry.data.dialog.DialogRegistryEntry.Builder) builder;
+                    entryBuilder.base(baseBuilder.build());
+                    entryBuilder.type(DialogType.confirmation(primaryBtn, secondaryBtn));
+                });
+
+                player.showDialog(dialog);
+            }
 
             logVerbose("对话框已发送 [" + session.type + "] 给 " + player.getName());
 
@@ -340,6 +375,97 @@ public class FormDialogManager {
     }
 
     /**
+     * 打开模式选择对话框（正版验证 / 离线密码）
+     */
+    public void openModeSelectForm(Player player, Runnable onPremium, Runnable onOffline) {
+        UUID uuid = player.getUniqueId();
+        if (!player.isOnline()) return;
+
+        if (!uiLock.tryLock(uuid)) {
+            plugin.getLogger().warning("打开模式选择窗体失败: UI锁被占用 (玩家: " + player.getName() + ")");
+            return;
+        }
+
+        DialogSession session = new DialogSession()
+                .type("modeSelect")
+                .title(getStr("modeselect.title", "选择登录方式"))
+                .content(getStr("modeselect.content", "请选择你的登录方式：\n\n<green>正版验证</green> - 使用微软账号登录\n<yellow>离线密码</yellow> - 使用离线账号密码登录"))
+                .primaryButton(getStr("modeselect.premium-button", "正版验证"))
+                .secondaryButton(getStr("modeselect.offline-button", "离线密码"))
+                .onPrimary(onPremium)
+                .onSecondary(onOffline);
+
+        dialogSessions.put(uuid, session);
+        showDialog(player, session);
+    }
+
+    /**
+     * 打开正版验证对话框（设备码登录）
+     */
+    public void openPremiumVerifyForm(Player player, String userCode, String verificationUrl, Runnable onCancel, Runnable onRefresh) {
+        UUID uuid = player.getUniqueId();
+        if (!player.isOnline()) return;
+
+        if (!uiLock.tryLock(uuid)) {
+            plugin.getLogger().warning("打开正版验证窗体失败: UI锁被占用 (玩家: " + player.getName() + ")");
+            return;
+        }
+
+        String content = buildPremiumVerifyContent(userCode, verificationUrl, null);
+
+        DialogSession session = new DialogSession()
+                .type("premiumVerify")
+                .title(getStr("premiumverify.title", "正版验证"))
+                .content(content)
+                .primaryButton(getStr("premiumverify.verify-button", "我已验证"))
+                .secondaryButton(getStr("premiumverify.cancel-button", "取消"))
+                .onPrimary(onRefresh)
+                .onSecondary(onCancel);
+        session.premiumUserCode = userCode;
+        session.premiumVerificationUrl = verificationUrl;
+
+        dialogSessions.put(uuid, session);
+        showDialog(player, session);
+    }
+
+    /**
+     * 更新正版验证状态消息
+     */
+    public void updatePremiumVerifyStatus(Player player, String statusMessage) {
+        UUID uuid = player.getUniqueId();
+        DialogSession session = dialogSessions.get(uuid);
+        if (session == null || !"premiumVerify".equals(session.type)) {
+            plugin.getLogger().warning("尝试更新不存在的正版验证会话: " + player.getName());
+            return;
+        }
+
+        String userCode = session.premiumUserCode != null ? session.premiumUserCode : "";
+        String verificationUrl = session.premiumVerificationUrl != null ? session.premiumVerificationUrl : "";
+
+        session.content = buildPremiumVerifyContent(userCode, verificationUrl, statusMessage);
+        if (player.isOnline()) {
+            showDialog(player, session);
+        }
+    }
+
+    private String buildPremiumVerifyContent(String userCode, String verificationUrl, String statusMessage) {
+        StringBuilder sb = new StringBuilder();
+        if (statusMessage != null && !statusMessage.isEmpty()) {
+            sb.append("<green>").append(statusMessage).append("</green>\n\n");
+        } else {
+            sb.append(getStr("premiumverify.intro", "请使用浏览器访问以下链接并输入设备码：")).append("\n\n");
+        }
+        sb.append("<yellow>").append(getStr("premiumverify.url-label", "验证链接：")).append("</yellow>")
+                .append("<gold><underlined>").append(verificationUrl).append("</underlined></gold>\n\n");
+        sb.append("<yellow>").append(getStr("premiumverify.code-label", "设备码：")).append("</yellow>")
+                .append("<click:copy_to_clipboard:").append(userCode).append("><gold><b>")
+                .append(userCode).append("</b></gold></click>\n")
+                .append("<gray>（点击设备码可复制）</gray>\n\n");
+        sb.append("<gray>").append(getStr("premiumverify.footer", "点击「打开验证页面」按钮打开浏览器\n完成验证后点击「我已验证」或等待自动检测")).append("</gray>");
+        return sb.toString();
+    }
+
+    /**
      * 切换对话框类型（保留输入缓存）
      */
     public void switchDialogType(Player player, String newType) {
@@ -452,6 +578,9 @@ public class FormDialogManager {
                     e.printStackTrace();
                 }
             }
+        } else {
+            logVerbose("未知的对话框点击 key: " + keyStr + "，重新显示对话框");
+            showDialog(player, session);
         }
     }
 

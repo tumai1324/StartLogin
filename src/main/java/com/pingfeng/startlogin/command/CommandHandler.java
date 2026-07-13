@@ -64,6 +64,8 @@ public class CommandHandler implements TabExecutor {
             case "info" -> handleInfo(sender, args);
             case "stats" -> handleStats(sender, args);
             case "forcechangepwd" -> handleForceChangePwd(sender, args);
+            case "premium" -> handlePremium(sender, args);
+            case "unpremium" -> handleUnpremium(sender, args);
             default -> {
                 sendHelp(sender);
                 yield true;
@@ -312,6 +314,8 @@ public class CommandHandler implements TabExecutor {
             sender.sendMessage(messageManager.getMessage("admin.info-register-ip", "ip", data.registerIp != null ? data.registerIp : "无记录"));
             sender.sendMessage(messageManager.getMessage("admin.info-last-login", "time", accountManager.formatTime(data.lastLoginTime)));
             sender.sendMessage(messageManager.getMessage("admin.info-last-ip", "ip", data.lastLoginIp != null ? data.lastLoginIp : "无记录"));
+            sender.sendMessage(messageManager.getMessage("info.is-premium", "status", data.isPremium ? "是" : "否"));
+            sender.sendMessage(messageManager.getMessage("info.premium-uuid", "uuid", data.premiumUuid != null ? data.premiumUuid : "无"));
         });
         return true;
     }
@@ -355,6 +359,181 @@ public class CommandHandler implements TabExecutor {
         return true;
     }
 
+    private boolean handlePremium(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(messageManager.getMessage("general.player-only"));
+                return true;
+            }
+            if (!accountManager.isLoggedIn(player.getUniqueId())) {
+                sender.sendMessage(messageManager.getMessage("login.not-logged"));
+                return true;
+            }
+            accountManager.isPremiumAccountDb(player.getUniqueId(), (isPremium, data) -> {
+                if (isPremium) {
+                    player.sendMessage(messageManager.getMessage("premium.already-premium"));
+                    return;
+                }
+                startPlayerPremiumLogin(player);
+            });
+            return true;
+        }
+
+        if (!sender.hasPermission("startlogin.admin")) {
+            sender.sendMessage(messageManager.getMessage("general.no-permission"));
+            return true;
+        }
+
+        String targetName = args[1];
+        OfflinePlayer target = Bukkit.getOfflinePlayerIfCached(targetName);
+        if (target == null) {
+            target = Bukkit.getOfflinePlayer(targetName);
+        }
+
+        UUID targetUuid = target.getUniqueId();
+        accountManager.isPremiumAccountDb(targetUuid, (isPremium, data) -> {
+            if (data == null) {
+                sender.sendMessage(messageManager.getMessage("premium.account-not-found"));
+                return;
+            }
+            if (isPremium) {
+                sender.sendMessage(messageManager.getMessage("premium.already-premium"));
+                return;
+            }
+            accountManager.setPremium(targetUuid, null, null, null, 0, success -> {
+                if (success) {
+                    sender.sendMessage(messageManager.getMessage("premium.set-success", "player", targetName));
+                    logAudit(sender.getName(), "premium", targetName);
+                } else {
+                    sender.sendMessage(messageManager.getMessage("premium.account-not-found"));
+                }
+            });
+        });
+        return true;
+    }
+
+    private void startPlayerPremiumLogin(Player player) {
+        UUID uuid = player.getUniqueId();
+        formDialogManager.cleanupDialogNoUnlock(uuid);
+
+        final boolean[] cancelled = {false};
+        final String[] currentUserCode = {null};
+
+        plugin.getPremiumAuthManager().startDeviceLogin(new com.pingfeng.startlogin.auth.PremiumAuthManager.DeviceLoginStartCallback() {
+            @Override
+            public void onDeviceCode(String userCode, String verificationUrl) {
+                if (!player.isOnline() || cancelled[0]) return;
+                currentUserCode[0] = userCode;
+                formDialogManager.openPremiumVerifyForm(player, userCode, verificationUrl,
+                        () -> {
+                            cancelled[0] = true;
+                            formDialogManager.cleanupDialog(uuid);
+                            player.sendMessage(messageManager.getMessage("premium.cancelled"));
+                        },
+                        () -> {});
+
+                net.kyori.adventure.text.Component clickableLink = net.kyori.adventure.text.Component.text()
+                        .append(net.kyori.adventure.text.Component.text("[StartLogin] 请打开浏览器访问以下链接进行正版验证：\n", net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                        .append(net.kyori.adventure.text.Component.text(verificationUrl + "\n", net.kyori.adventure.text.format.NamedTextColor.GOLD)
+                                .decorate(net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
+                                .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(verificationUrl)))
+                        .append(net.kyori.adventure.text.Component.text("设备码：", net.kyori.adventure.text.format.NamedTextColor.YELLOW))
+                        .append(net.kyori.adventure.text.Component.text(userCode + "\n", net.kyori.adventure.text.format.NamedTextColor.GOLD)
+                                .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)
+                                .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(userCode)))
+                        .append(net.kyori.adventure.text.Component.text("（点击链接打开验证页面，点击设备码复制）", net.kyori.adventure.text.format.NamedTextColor.GRAY))
+                        .build();
+                player.sendMessage(clickableLink);
+            }
+
+            @Override
+            public void onSuccess(UUID premiumUuid, String username, String mcToken, String refreshToken, long accessTokenExpires) {
+                if (!player.isOnline() || cancelled[0]) return;
+                formDialogManager.updatePremiumVerifyStatus(player, "验证成功，正在绑定...");
+                handlePlayerPremiumSuccess(player, premiumUuid, username, mcToken, refreshToken, accessTokenExpires);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                if (!player.isOnline() || cancelled[0]) return;
+                formDialogManager.cleanupDialog(uuid);
+                formDialogManager.openMessageDialog(player, "<red>正版验证失败：" + error,
+                        () -> {});
+            }
+        });
+    }
+
+    private void handlePlayerPremiumSuccess(Player player, UUID premiumUuid, String username, String mcToken, String refreshToken, long accessTokenExpires) {
+        UUID uuid = player.getUniqueId();
+        String ip = player.getAddress() != null ? player.getAddress().getHostString() : "unknown";
+
+        accountManager.checkPremiumAccount(premiumUuid.toString(), (exists, existingData) -> {
+            if (!player.isOnline()) return;
+
+            if (exists) {
+                if (!existingData.uuid.equals(uuid)) {
+                    formDialogManager.cleanupDialog(uuid);
+                    player.sendMessage(messageManager.getMessage("premium.already-bound"));
+                    return;
+                }
+                accountManager.setPremium(uuid, premiumUuid.toString(), refreshToken, mcToken, accessTokenExpires, success -> {
+                    if (!player.isOnline()) return;
+                    if (success) {
+                        formDialogManager.cleanupDialog(uuid);
+                        player.sendMessage(messageManager.getMessage("premium.bound-success"));
+                    }
+                });
+            } else {
+                accountManager.setPremium(uuid, premiumUuid.toString(), refreshToken, mcToken, accessTokenExpires, success -> {
+                    if (!player.isOnline()) return;
+                    if (success) {
+                        formDialogManager.cleanupDialog(uuid);
+                        player.sendMessage(messageManager.getMessage("premium.bound-success"));
+                    }
+                });
+            }
+        });
+    }
+
+    private boolean handleUnpremium(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("startlogin.admin")) {
+            sender.sendMessage(messageManager.getMessage("general.no-permission"));
+            return true;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage(Component.text("用法: /sl unpremium <玩家名>"));
+            return true;
+        }
+
+        String targetName = args[1];
+        OfflinePlayer target = Bukkit.getOfflinePlayerIfCached(targetName);
+        if (target == null) {
+            target = Bukkit.getOfflinePlayer(targetName);
+        }
+
+        UUID targetUuid = target.getUniqueId();
+        accountManager.isPremiumAccountDb(targetUuid, (isPremium, data) -> {
+            if (data == null) {
+                sender.sendMessage(messageManager.getMessage("premium.account-not-found"));
+                return;
+            }
+            if (!isPremium) {
+                sender.sendMessage(messageManager.getMessage("premium.not-premium"));
+                return;
+            }
+            accountManager.unsetPremium(targetUuid, success -> {
+                if (success) {
+                    sender.sendMessage(messageManager.getMessage("premium.unset-success", "player", targetName));
+                    logAudit(sender.getName(), "unpremium", targetName);
+                } else {
+                    sender.sendMessage(messageManager.getMessage("premium.account-not-found"));
+                }
+            });
+        });
+        return true;
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(messageManager.getMessage("help.header"));
         sender.sendMessage(messageManager.getMessage("help.player-title"));
@@ -362,12 +541,15 @@ public class CommandHandler implements TabExecutor {
         sender.sendMessage(messageManager.getMessage("help.register"));
         sender.sendMessage(messageManager.getMessage("help.changepwd"));
         sender.sendMessage(messageManager.getMessage("help.unregister"));
+        sender.sendMessage(messageManager.getMessage("help.premium-self"));
 
         if (sender.hasPermission("startlogin.admin")) {
             sender.sendMessage(Component.empty());
             sender.sendMessage(messageManager.getMessage("help.admin-title"));
             sender.sendMessage(messageManager.getMessage("help.reset"));
             sender.sendMessage(messageManager.getMessage("help.forcechangepwd"));
+            sender.sendMessage(messageManager.getMessage("help.premium"));
+            sender.sendMessage(messageManager.getMessage("help.unpremium"));
             sender.sendMessage(messageManager.getMessage("help.info"));
             sender.sendMessage(messageManager.getMessage("help.stats"));
             sender.sendMessage(messageManager.getMessage("help.backup"));
@@ -413,6 +595,8 @@ public class CommandHandler implements TabExecutor {
                 completions.add("info");
                 completions.add("stats");
                 completions.add("forcechangepwd");
+                completions.add("premium");
+                completions.add("unpremium");
             }
         }
 

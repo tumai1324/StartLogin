@@ -1,6 +1,7 @@
 package com.pingfeng.startlogin;
 
 import com.pingfeng.startlogin.account.AccountManager;
+import com.pingfeng.startlogin.auth.PremiumAuthManager;
 import com.pingfeng.startlogin.command.CommandHandler;
 import com.pingfeng.startlogin.config.ConfigManager;
 import com.pingfeng.startlogin.config.MessageManager;
@@ -31,6 +32,7 @@ public class StartLogin extends JavaPlugin {
     private DatabaseManager databaseManager;
     private SQLTaskQueue sqlTaskQueue;
     private AccountManager accountManager;
+    private PremiumAuthManager premiumAuthManager;
     private UILock uiLock;
     private FormDialogManager formDialogManager;
     private PlayerListener playerListener;
@@ -41,7 +43,7 @@ public class StartLogin extends JavaPlugin {
     @Override
     public void onEnable() {
         getLogger().info("=====================================");
-        getLogger().info("  StartLogin V2.2");
+        getLogger().info("  StartLogin V2.3");
         getLogger().info("  作者：屏风");
         getLogger().info("=====================================");
 
@@ -134,11 +136,14 @@ public class StartLogin extends JavaPlugin {
 
         accountManager = new AccountManager(this, configManager, messageManager,
                 databaseManager, sqlTaskQueue);
+
+        premiumAuthManager = new PremiumAuthManager(this, configManager, threadPoolManager);
     }
 
     private void registerListeners() {
         playerListener = new PlayerListener(this, accountManager,
-                formDialogManager, messageManager, uiLock);
+                formDialogManager, messageManager, uiLock,
+                premiumAuthManager, threadPoolManager);
         Bukkit.getPluginManager().registerEvents(playerListener, this);
 
         dialogListener = new DialogListener(this, formDialogManager);
@@ -220,5 +225,9 @@ public class StartLogin extends JavaPlugin {
 
     public FormDialogManager getFormDialogManager() {
         return formDialogManager;
+    }
+
+    public PremiumAuthManager getPremiumAuthManager() {
+        return premiumAuthManager;
     }
 }

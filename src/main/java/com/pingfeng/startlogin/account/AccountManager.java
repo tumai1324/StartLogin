@@ -85,7 +85,7 @@ public class AccountManager {
     }
 
     private AccountData queryAccount(Connection conn, UUID uuid) throws SQLException {
-        String sql = "SELECT uuid, username, password, has_agreed_rule, register_ip, register_time, last_login_ip, last_login_time, password_changed_time, force_change_password FROM accounts WHERE uuid = ?";
+        String sql = "SELECT uuid, username, password, has_agreed_rule, register_ip, register_time, last_login_ip, last_login_time, password_changed_time, force_change_password, is_premium, premium_uuid, microsoft_refresh_token, microsoft_access_token, microsoft_access_token_expires FROM accounts WHERE uuid = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, uuid.toString());
             try (ResultSet rs = stmt.executeQuery()) {
@@ -101,6 +101,11 @@ public class AccountManager {
                     data.lastLoginTime = rs.getLong("last_login_time");
                     data.passwordChangedTime = rs.getLong("password_changed_time");
                     data.forceChangePassword = rs.getBoolean("force_change_password");
+                    data.isPremium = rs.getBoolean("is_premium");
+                    data.premiumUuid = rs.getString("premium_uuid");
+                    data.microsoftRefreshToken = rs.getString("microsoft_refresh_token");
+                    data.microsoftAccessToken = rs.getString("microsoft_access_token");
+                    data.microsoftAccessTokenExpires = rs.getLong("microsoft_access_token_expires");
                     return data;
                 }
             }
@@ -434,6 +439,222 @@ public class AccountManager {
     public boolean isPremiumAccount(UUID uuid) {
         LoginSession session = loginSessions.get(uuid);
         return session != null && session.isPremium;
+    }
+
+    public void registerPremiumAccount(UUID uuid, String username, String premiumUuid, String refreshToken, String accessToken, long accessTokenExpires, String ip, RegisterCallback callback) {
+        long currentTime = System.currentTimeMillis();
+        sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<Boolean>() {
+            @Override
+            public Boolean execute(Connection conn) throws SQLException {
+                AccountData existing = queryAccount(conn, uuid);
+                if (existing != null) {
+                    return false;
+                }
+                String sql = "INSERT INTO accounts (uuid, username, password, has_agreed_rule, register_ip, register_time, password_changed_time, force_change_password, is_premium, premium_uuid, microsoft_refresh_token, microsoft_access_token, microsoft_access_token_expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, uuid.toString());
+                    stmt.setString(2, username);
+                    stmt.setString(3, null);
+                    stmt.setBoolean(4, false);
+                    stmt.setString(5, ip);
+                    stmt.setLong(6, currentTime);
+                    stmt.setLong(7, currentTime);
+                    stmt.setBoolean(8, false);
+                    stmt.setBoolean(9, true);
+                    stmt.setString(10, premiumUuid);
+                    stmt.setString(11, refreshToken);
+                    stmt.setString(12, accessToken);
+                    stmt.setLong(13, accessTokenExpires);
+                    stmt.executeUpdate();
+                }
+                return true;
+            }
+        }.callback(new SQLTaskQueue.SQLCallback<>() {
+            @Override
+            public void onSuccess(Boolean success) {
+                callback.onResult(success);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                plugin.getLogger().severe("注册正版账号失败: " + e.getMessage());
+                callback.onResult(false);
+            }
+        }));
+    }
+
+    public void setPremium(UUID uuid, String premiumUuid, String refreshToken, String accessToken, long accessTokenExpires, PremiumSetCallback callback) {
+        sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<Boolean>() {
+            @Override
+            public Boolean execute(Connection conn) throws SQLException {
+                AccountData existing = queryAccount(conn, uuid);
+                if (existing == null) {
+                    return false;
+                }
+                String sql = "UPDATE accounts SET is_premium = ?, premium_uuid = ?, microsoft_refresh_token = ?, microsoft_access_token = ?, microsoft_access_token_expires = ? WHERE uuid = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setBoolean(1, true);
+                    stmt.setString(2, premiumUuid);
+                    stmt.setString(3, refreshToken);
+                    stmt.setString(4, accessToken);
+                    stmt.setLong(5, accessTokenExpires);
+                    stmt.setString(6, uuid.toString());
+                    stmt.executeUpdate();
+                }
+                return true;
+            }
+        }.callback(new SQLTaskQueue.SQLCallback<>() {
+            @Override
+            public void onSuccess(Boolean success) {
+                if (success) {
+                    LoginSession session = loginSessions.get(uuid);
+                    if (session != null) {
+                        session.isPremium = true;
+                    }
+                }
+                callback.onResult(success);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                plugin.getLogger().severe("设置正版账号失败: " + e.getMessage());
+                callback.onResult(false);
+            }
+        }));
+    }
+
+    public void unsetPremium(UUID uuid, PremiumSetCallback callback) {
+        sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<Boolean>() {
+            @Override
+            public Boolean execute(Connection conn) throws SQLException {
+                AccountData existing = queryAccount(conn, uuid);
+                if (existing == null) {
+                    return false;
+                }
+                String sql = "UPDATE accounts SET is_premium = ?, premium_uuid = ?, microsoft_refresh_token = ?, microsoft_access_token = ?, microsoft_access_token_expires = ? WHERE uuid = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setBoolean(1, false);
+                    stmt.setString(2, null);
+                    stmt.setString(3, null);
+                    stmt.setString(4, null);
+                    stmt.setLong(5, 0);
+                    stmt.setString(6, uuid.toString());
+                    stmt.executeUpdate();
+                }
+                return true;
+            }
+        }.callback(new SQLTaskQueue.SQLCallback<>() {
+            @Override
+            public void onSuccess(Boolean success) {
+                if (success) {
+                    LoginSession session = loginSessions.get(uuid);
+                    if (session != null) {
+                        session.isPremium = false;
+                    }
+                }
+                callback.onResult(success);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                plugin.getLogger().severe("取消正版账号失败: " + e.getMessage());
+                callback.onResult(false);
+            }
+        }));
+    }
+
+    public void checkPremiumAccount(String premiumUuid, PremiumCheckCallback callback) {
+        sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<AccountData>() {
+            @Override
+            public AccountData execute(Connection conn) throws SQLException {
+                String sql = "SELECT uuid, username, password, has_agreed_rule, register_ip, register_time, last_login_ip, last_login_time, password_changed_time, force_change_password, is_premium, premium_uuid, microsoft_refresh_token, microsoft_access_token, microsoft_access_token_expires FROM accounts WHERE premium_uuid = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, premiumUuid);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            AccountData data = new AccountData();
+                            data.uuid = UUID.fromString(rs.getString("uuid"));
+                            data.username = rs.getString("username");
+                            data.password = rs.getString("password");
+                            data.hasAgreedRule = rs.getBoolean("has_agreed_rule");
+                            data.registerIp = rs.getString("register_ip");
+                            data.registerTime = rs.getLong("register_time");
+                            data.lastLoginIp = rs.getString("last_login_ip");
+                            data.lastLoginTime = rs.getLong("last_login_time");
+                            data.passwordChangedTime = rs.getLong("password_changed_time");
+                            data.forceChangePassword = rs.getBoolean("force_change_password");
+                            data.isPremium = rs.getBoolean("is_premium");
+                            data.premiumUuid = rs.getString("premium_uuid");
+                            data.microsoftRefreshToken = rs.getString("microsoft_refresh_token");
+                            data.microsoftAccessToken = rs.getString("microsoft_access_token");
+                            data.microsoftAccessTokenExpires = rs.getLong("microsoft_access_token_expires");
+                            return data;
+                        }
+                    }
+                }
+                return null;
+            }
+        }.callback(new SQLTaskQueue.SQLCallback<>() {
+            @Override
+            public void onSuccess(AccountData data) {
+                callback.onResult(data != null, data);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                plugin.getLogger().severe("检查正版账号失败: " + e.getMessage());
+                callback.onResult(false, null);
+            }
+        }));
+    }
+
+    public void updateMicrosoftTokens(UUID uuid, String refreshToken, String accessToken, long accessTokenExpires, Runnable onComplete) {
+        sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<Void>() {
+            @Override
+            public Void execute(Connection conn) throws SQLException {
+                String sql = "UPDATE accounts SET microsoft_refresh_token = ?, microsoft_access_token = ?, microsoft_access_token_expires = ? WHERE uuid = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, refreshToken);
+                    stmt.setString(2, accessToken);
+                    stmt.setLong(3, accessTokenExpires);
+                    stmt.setString(4, uuid.toString());
+                    stmt.executeUpdate();
+                }
+                return null;
+            }
+        }.callback(new SQLTaskQueue.SQLCallback<>() {
+            @Override
+            public void onSuccess(Void result) {
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                plugin.getLogger().severe("更新微软令牌失败: " + e.getMessage());
+            }
+        }));
+    }
+
+    public void isPremiumAccountDb(UUID uuid, PremiumCheckCallback callback) {
+        sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<AccountData>() {
+            @Override
+            public AccountData execute(Connection conn) throws SQLException {
+                return queryAccount(conn, uuid);
+            }
+        }.callback(new SQLTaskQueue.SQLCallback<>() {
+            @Override
+            public void onSuccess(AccountData data) {
+                callback.onResult(data != null && data.isPremium, data);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                plugin.getLogger().severe("检查正版账号状态失败: " + e.getMessage());
+                callback.onResult(false, null);
+            }
+        }));
     }
 
     // ==================== 会话缓存 ====================
@@ -771,7 +992,7 @@ public class AccountManager {
         sqlTaskQueue.submit(new SQLTaskQueue.SQLTask<AccountData>() {
             @Override
             public AccountData execute(Connection conn) throws SQLException {
-                String sql = "SELECT uuid, username, password, has_agreed_rule, register_ip, register_time, last_login_ip, last_login_time, password_changed_time, force_change_password FROM accounts WHERE LOWER(username) = LOWER(?)";
+                String sql = "SELECT uuid, username, password, has_agreed_rule, register_ip, register_time, last_login_ip, last_login_time, password_changed_time, force_change_password, is_premium, premium_uuid FROM accounts WHERE LOWER(username) = LOWER(?)";
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setString(1, username);
                     try (ResultSet rs = stmt.executeQuery()) {
@@ -787,6 +1008,8 @@ public class AccountManager {
                             data.lastLoginTime = rs.getLong("last_login_time");
                             data.passwordChangedTime = rs.getLong("password_changed_time");
                             data.forceChangePassword = rs.getBoolean("force_change_password");
+                            data.isPremium = rs.getBoolean("is_premium");
+                            data.premiumUuid = rs.getString("premium_uuid");
                             return data;
                         }
                     }
@@ -940,6 +1163,11 @@ public class AccountManager {
         public long lastLoginTime;
         public long passwordChangedTime;
         public boolean forceChangePassword;
+        public boolean isPremium;
+        public String premiumUuid;
+        public String microsoftRefreshToken;
+        public String microsoftAccessToken;
+        public long microsoftAccessTokenExpires;
     }
 
     public interface AccountLoadCallback {
@@ -1000,5 +1228,13 @@ public class AccountManager {
 
     public interface AccountInfoCallback {
         void onResult(AccountData data);
+    }
+
+    public interface PremiumSetCallback {
+        void onResult(boolean success);
+    }
+
+    public interface PremiumCheckCallback {
+        void onResult(boolean exists, AccountData data);
     }
 }

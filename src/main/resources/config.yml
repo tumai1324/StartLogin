@@ -28,6 +28,14 @@ thread-pool:
 premium:
   # 是否启用正版验证
   enabled: true
+  # Microsoft OAuth client ID（留空使用 MinecraftAuth 默认值）
+  client-id: ""
+  # 重定向 URI（默认可留空）
+  redirect-uri: ""
+  # 轮询间隔秒数
+  poll-interval: 5
+  # 正版玩家是否自动登录
+  auto-login: true
   # Mojang API 请求超时（毫秒）
   timeout: 3000
   # 最大重试次数
@@ -90,7 +98,7 @@ security:
   # 异地登录提醒（从不常登录的IP进入时提示）
   remote-login-alert: true
   # 未登录踢出时间（秒），设为0禁用
-  kick-timeout: 120
+  kick-timeout: 300
   # 首次登录保护时间（秒），新注册玩家获得无敌效果
   first-login-protection: 30
   # 密码过期天数（0=不限制），超过后强制修改密码

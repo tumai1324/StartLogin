@@ -35,10 +35,14 @@ public class DatabaseManager {
                 last_login_ip TEXT,
                 last_login_time INTEGER,
                 password_changed_time INTEGER,
-                force_change_password BOOLEAN NOT NULL DEFAULT false
+                force_change_password BOOLEAN NOT NULL DEFAULT false,
+                is_premium BOOLEAN NOT NULL DEFAULT false,
+                premium_uuid TEXT,
+                microsoft_refresh_token TEXT,
+                microsoft_access_token TEXT,
+                microsoft_access_token_expires INTEGER
             )
             """;
-
     private static final String CREATE_LOGIN_RECORDS_SQL = """
             CREATE TABLE IF NOT EXISTS login_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,7 +104,12 @@ public class DatabaseManager {
         String[] newColumns = {
                 "register_ip TEXT", "register_time INTEGER",
                 "last_login_ip TEXT", "last_login_time INTEGER",
-                "password_changed_time INTEGER", "force_change_password BOOLEAN NOT NULL DEFAULT false"
+                "password_changed_time INTEGER", "force_change_password BOOLEAN NOT NULL DEFAULT false",
+                "is_premium BOOLEAN NOT NULL DEFAULT false",
+                "premium_uuid TEXT",
+                "microsoft_refresh_token TEXT",
+                "microsoft_access_token TEXT",
+                "microsoft_access_token_expires INTEGER"
         };
         for (String colDef : newColumns) {
             String colName = colDef.split(" ")[0];

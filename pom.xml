@@ -6,7 +6,7 @@
 
     <groupId>com.pingfeng</groupId>
     <artifactId>StartLogin</artifactId>
-    <version>2.2.0</version>
+    <version>2.3.0</version>
     <packaging>jar</packaging>
 
     <name>StartLogin</name>
@@ -27,6 +27,10 @@
             <id>sonatype</id>
             <url>https://oss.sonatype.org/content/groups/public/</url>
         </repository>
+        <repository>
+            <id>raphimc</id>
+            <url>https://repo.raphimc.net/releases/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -43,10 +47,17 @@
             <version>3.46.0.0</version>
             <scope>compile</scope>
         </dependency>
+
+        <dependency>
+            <groupId>net.raphimc</groupId>
+            <artifactId>MinecraftAuth</artifactId>
+            <version>2.1.6</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>
-        <finalName>StartLogin-V2.2</finalName>
+        <finalName>StartLogin-V2.3</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -69,6 +80,14 @@
                                 <relocation>
                                     <pattern>org.sqlite</pattern>
                                     <shadedPattern>com.pingfeng.startlogin.libs.sqlite</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>net.raphimc.mcauth</pattern>
+                                    <shadedPattern>com.pingfeng.startlogin.libs.mcauth</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google.gson</pattern>
+                                    <shadedPattern>com.pingfeng.startlogin.libs.gson</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>

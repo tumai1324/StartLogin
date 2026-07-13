@@ -95,6 +95,22 @@ public class ConfigManager {
         return getConfig().getBoolean("premium.enabled", true);
     }
 
+    public String getPremiumClientId() {
+        return getConfig().getString("premium.client-id", "");
+    }
+
+    public String getPremiumRedirectUri() {
+        return getConfig().getString("premium.redirect-uri", "");
+    }
+
+    public int getPremiumPollInterval() {
+        return getConfig().getInt("premium.poll-interval", 5);
+    }
+
+    public boolean isPremiumAutoLogin() {
+        return getConfig().getBoolean("premium.auto-login", true);
+    }
+
     public int getPremiumTimeout() {
         return getConfig().getInt("premium.timeout", 3000);
     }
@@ -205,7 +221,7 @@ public class ConfigManager {
 
     // 未登录踢出
     public int getKickTimeout() {
-        return getConfig().getInt("security.kick-timeout", 120);
+        return getConfig().getInt("security.kick-timeout", 300);
     }
 
     // 首次登录保护
